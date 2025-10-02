@@ -51,7 +51,9 @@ import { AddActivityModalComponent } from './add-activity-modal.component';
           <ion-button fill="clear" (click)="previousDay()">
             <ion-icon [icon]="chevronBackIcon"></ion-icon>
           </ion-button>
-          <h3>{{ selectedDate | date:'fullDate' }}</h3>
+          <h3 (click)="selectDate()" style="cursor: pointer; user-select: none;">
+            {{ selectedDate | date:'fullDate' }}
+          </h3>
           <ion-button fill="clear" (click)="nextDay()">
             <ion-icon [icon]="chevronForwardIcon"></ion-icon>
           </ion-button>
@@ -382,6 +384,17 @@ export class ActivitiesPage implements OnInit {
       inputs: projectOptions,
       buttons: [
         {
+          text: 'Delete',
+          role: 'destructive',
+          handler: async () => {
+            // Dismiss current alert first
+            await this.alertController.dismiss();
+            // Show confirmation dialog
+            await this.confirmDeleteActivity(activity);
+            return false;
+          }
+        },
+        {
           text: 'Cancel',
           role: 'cancel'
         },
@@ -416,20 +429,28 @@ export class ActivitiesPage implements OnInit {
   }
 
   async deleteActivity(activity: Activity) {
+    await this.confirmDeleteActivity(activity);
+  }
+
+  private async confirmDeleteActivity(activity: Activity) {
     const alert = await this.alertController.create({
-      header: 'Delete Activity',
-      message: 'Are you sure you want to delete this activity?',
+      header: 'Eliminar Actividad',
+      message: '¿Estás seguro de que quieres eliminar esta actividad?',
       buttons: [
         {
-          text: 'Cancel',
+          text: 'Cancelar',
           role: 'cancel'
         },
         {
-          text: 'Delete',
+          text: 'Eliminar',
           role: 'destructive',
           handler: async () => {
             await this.activityService.deleteActivity(activity.id);
-            this.loadActivities(); // Always refresh list
+            if (this.viewMode === 'calendar') {
+              this.loadActivitiesForDate();
+            } else {
+              this.loadActivities();
+            }
           }
         }
       ]
@@ -565,6 +586,45 @@ export class ActivitiesPage implements OnInit {
   goToToday() {
     this.selectedDate = new Date();
     this.loadActivitiesForDate();
+  }
+
+  async selectDate() {
+    const alert = await this.alertController.create({
+      header: 'Seleccionar Fecha',
+      inputs: [
+        {
+          name: 'date',
+          type: 'date',
+          value: this.toDateInputValue(this.selectedDate)
+        }
+      ],
+      buttons: [
+        {
+          text: 'Cancelar',
+          role: 'cancel'
+        },
+        {
+          text: 'Ir a Fecha',
+          handler: (data) => {
+            if (data.date) {
+              // Parse date as local time to avoid timezone issues
+              const [year, month, day] = data.date.split('-').map(Number);
+              this.selectedDate = new Date(year, month - 1, day);
+              this.loadActivitiesForDate();
+            }
+          }
+        }
+      ]
+    });
+
+    await alert.present();
+  }
+
+  private toDateInputValue(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   }
 
   // Time slot selection methods
