@@ -93,7 +93,53 @@ export class ActivitiesPage implements OnInit {
   }
 
   async editActivity(activity: Activity) {
-    const projectOptions = this.projects.map(p => ({
+    // First alert for basic activity info
+    const startDateTime = activity.start_time ? new Date(activity.start_time).toISOString().slice(0, 16) : '';
+    const endDateTime = activity.end_time ? new Date(activity.end_time).toISOString().slice(0, 16) : '';
+
+    const basicAlert = await this.alertController.create({
+      header: 'Edit Activity',
+      inputs: [
+        {
+          name: 'description',
+          type: 'text',
+          placeholder: 'Description',
+          value: activity.description || ''
+        },
+        {
+          name: 'startDateTime',
+          type: 'datetime-local',
+          value: startDateTime
+        },
+        {
+          name: 'endDateTime',
+          type: 'datetime-local',
+          value: endDateTime
+        }
+      ],
+      buttons: [
+        {
+          text: 'Cancel',
+          role: 'cancel'
+        },
+        {
+          text: 'Next',
+          handler: async (data) => {
+            if (data.description && data.startDateTime) {
+              // Show project selection alert
+              await this.showProjectSelectionForEdit(activity, data);
+            }
+            return false; // Prevent alert from closing
+          }
+        }
+      ]
+    });
+
+    await basicAlert.present();
+  }
+
+  private async showProjectSelectionForEdit(activity: Activity, activityData: any) {
+    const projectOptions: any[] = this.projects.map(p => ({
       label: p.name,
       type: 'radio' as const,
       value: p.id,
@@ -106,8 +152,8 @@ export class ActivitiesPage implements OnInit {
       checked: !activity.project_id
     });
 
-    const alert = await this.alertController.create({
-      header: 'Assign Project',
+    const projectAlert = await this.alertController.create({
+      header: 'Select Project',
       inputs: projectOptions,
       buttons: [
         {
@@ -116,22 +162,27 @@ export class ActivitiesPage implements OnInit {
         },
         {
           text: 'Save',
-          handler: async (data) => {
-            const selectedProject = data.project || '';
-            const updates: Partial<Activity> = {};
-            if (selectedProject !== (activity.project_id || '')) {
-              updates.project_id = selectedProject || undefined;
-            }
-            if (Object.keys(updates).length > 0) {
-              await this.activityService.updateActivity(activity.id, updates);
-            }
-            this.loadActivities(); // Always refresh list
+          handler: async (selectedProjectId) => {
+            const startTime = new Date(activityData.startDateTime).toISOString();
+            const endTime = activityData.endDateTime ? new Date(activityData.endDateTime).toISOString() : undefined;
+
+            const updates: Partial<Activity> = {
+              description: activityData.description,
+              start_time: startTime,
+              end_time: endTime,
+              project_id: selectedProjectId || undefined
+            };
+
+            await this.activityService.updateActivity(activity.id, updates);
+            this.loadActivities(); // Refresh list
           }
         }
       ]
     });
 
-    await alert.present();
+    // Dismiss the first alert
+    await this.alertController.dismiss();
+    await projectAlert.present();
   }
 
   async deleteActivity(activity: Activity) {
@@ -158,7 +209,8 @@ export class ActivitiesPage implements OnInit {
   }
 
   async addManualActivity() {
-    const alert = await this.alertController.create({
+    // First alert for basic activity info
+    const basicAlert = await this.alertController.create({
       header: 'Add Manual Activity',
       inputs: [
         {
@@ -174,11 +226,6 @@ export class ActivitiesPage implements OnInit {
         {
           name: 'endDateTime',
           type: 'datetime-local'
-        },
-        {
-          name: 'project',
-          type: 'text',
-          placeholder: 'Project name (optional)'
         }
       ],
       buttons: [
@@ -187,30 +234,65 @@ export class ActivitiesPage implements OnInit {
           role: 'cancel'
         },
         {
-          text: 'Add',
+          text: 'Next',
           handler: async (data) => {
             if (data.description && data.startDateTime) {
-              const startTime = new Date(data.startDateTime).toISOString();
-              const endTime = data.endDateTime ? new Date(data.endDateTime).toISOString() : undefined;
-              const project = this.projects.find(p => p.name === data.project);
-              const project_id = project ? project.id : undefined;
-
-              const activity = {
-                description: data.description,
-                start_time: startTime,
-                end_time: endTime,
-                project_id
-              };
-
-              await this.activityService.createActivity(activity);
-              this.loadActivities(); // Refresh list
+              // Show project selection alert
+              await this.showProjectSelection(data);
             }
+            return false; // Prevent alert from closing
           }
         }
       ]
     });
 
-    await alert.present();
+    await basicAlert.present();
+  }
+
+  private async showProjectSelection(activityData: any) {
+    const projectOptions: any[] = this.projects.map(p => ({
+      label: p.name,
+      type: 'radio' as const,
+      value: p.id
+    }));
+    projectOptions.unshift({
+      label: 'No project',
+      type: 'radio' as const,
+      value: '',
+      checked: true
+    });
+
+    const projectAlert = await this.alertController.create({
+      header: 'Select Project',
+      inputs: projectOptions,
+      buttons: [
+        {
+          text: 'Cancel',
+          role: 'cancel'
+        },
+        {
+          text: 'Add',
+          handler: async (selectedProjectId) => {
+            const startTime = new Date(activityData.startDateTime).toISOString();
+            const endTime = activityData.endDateTime ? new Date(activityData.endDateTime).toISOString() : undefined;
+
+            const activity = {
+              description: activityData.description,
+              start_time: startTime,
+              end_time: endTime,
+              project_id: selectedProjectId || undefined
+            };
+
+            await this.activityService.createActivity(activity);
+            this.loadActivities(); // Refresh list
+          }
+        }
+      ]
+    });
+
+    // Dismiss the first alert
+    await this.alertController.dismiss();
+    await projectAlert.present();
   }
 
   trackByFn(index: number, item: Activity) {
