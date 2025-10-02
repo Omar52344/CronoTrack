@@ -82,7 +82,7 @@ export class ActivityService {
       project_id: projectId,
       category_id: categoryId,
       description,
-      start_time: new Date().toISOString()
+      start_time: this.toLocalISOString(new Date())
     };
 
     this.timer = setInterval(() => {
@@ -96,7 +96,7 @@ export class ActivityService {
     const endTime = new Date();
     const duration = Math.floor((endTime.getTime() - new Date(this.currentActivity.start_time).getTime()) / 60000);
 
-    this.currentActivity.end_time = endTime.toISOString();
+    this.currentActivity.end_time = this.toLocalISOString(endTime);
     this.currentActivity.duration = duration;
 
     // Guardar en DB
@@ -112,6 +112,17 @@ export class ActivityService {
     }
 
     return { data, error };
+  }
+
+  private toLocalISOString(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+    
+    return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
   }
 
   getCurrentActivity() {
