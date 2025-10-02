@@ -86,6 +86,7 @@ import { AddActivityModalComponent } from './add-activity-modal.component';
                   <div class="activity-content">
                     <strong>{{ activity.description }}</strong>
                     <small>{{ activity.start_time | date:'shortTime' }} - {{ activity.end_time | date:'shortTime' }}</small>
+                    <small *ngIf="activity.projects" class="project-name">{{ activity.projects.name }}</small>
                   </div>
                 </div>
               </div>
@@ -237,6 +238,12 @@ import { AddActivityModalComponent } from './add-activity-modal.component';
     .activity-content small {
       font-size: 10px;
       opacity: 0.9;
+    }
+
+    .activity-content .project-name {
+      font-weight: 600;
+      opacity: 1;
+      margin-top: 1px;
     }
 
     ion-segment {
