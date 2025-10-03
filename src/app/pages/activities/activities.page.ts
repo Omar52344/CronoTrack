@@ -246,7 +246,8 @@ import { AddActivityModalComponent } from './add-activity-modal.component';
 
     .activity-block:hover {
       box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-      z-index: 100;
+      z-index: 1100;
+      overflow: visible;
     }
 
     .activity-block:hover .activity-tooltip {
@@ -292,22 +293,21 @@ import { AddActivityModalComponent } from './add-activity-modal.component';
     }
 
     .activity-tooltip {
-      position: absolute;
+      position: fixed;
       left: 50%;
-      bottom: calc(100% + 8px);
-      transform: translateX(-50%) translateY(-5px);
+      transform: translateX(-50%) translateY(-10px);
       background: white;
       color: #333;
-      padding: 16px;
+      padding: 18px 20px;
       border-radius: 10px;
-      box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.25);
       min-width: 300px;
-      max-width: 400px;
+      max-width: 450px;
       width: max-content;
       opacity: 0;
       visibility: hidden;
       transition: all 0.2s ease;
-      z-index: 1000;
+      z-index: 10000;
       pointer-events: none;
       white-space: nowrap;
     }
@@ -318,13 +318,14 @@ import { AddActivityModalComponent } from './add-activity-modal.component';
       top: 100%;
       left: 50%;
       transform: translateX(-50%);
-      border: 6px solid transparent;
+      border: 8px solid transparent;
       border-top-color: white;
+      z-index: 1001;
     }
 
     .tooltip-header {
-      margin-bottom: 8px;
-      padding-bottom: 8px;
+      margin-bottom: 12px;
+      padding-bottom: 12px;
       border-bottom: 1px solid #e0e0e0;
     }
 
@@ -340,17 +341,19 @@ import { AddActivityModalComponent } from './add-activity-modal.component';
     .tooltip-body {
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 10px;
     }
 
     .tooltip-row {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      gap: 16px;
+      gap: 24px;
       font-size: 13px;
-      line-height: 1.5;
+      line-height: 1.8;
       white-space: nowrap;
+      min-height: 24px;
+      padding: 2px 0;
     }
 
     .tooltip-label {
