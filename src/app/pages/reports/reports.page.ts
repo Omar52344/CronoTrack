@@ -13,6 +13,7 @@ interface ProjectReport {
   project: Project;
   hours: number;
   activities: number;
+  revenue: number; // Ingresos totales del proyecto
 }
 
 @Component({
@@ -68,6 +69,10 @@ interface ProjectReport {
                 <div class="stat-value">{{ activeProjects }}</div>
                 <div class="stat-label">Proyectos Activos</div>
               </div>
+              <div class="stat-item">
+                <div class="stat-value stat-revenue">\${{ totalRevenue.toFixed(2) }}</div>
+                <div class="stat-label">Ingresos Totales</div>
+              </div>
             </div>
           </ion-card-content>
         </ion-card>
@@ -83,6 +88,22 @@ interface ProjectReport {
                 [data]="barChartData"
                 [options]="barChartOptions"
                 [type]="barChartType">
+              </canvas>
+            </div>
+          </ion-card-content>
+        </ion-card>
+
+        <!-- Gráfica de ingresos -->
+        <ion-card>
+          <ion-card-header>
+            <ion-card-title>Ingresos por Proyecto</ion-card-title>
+          </ion-card-header>
+          <ion-card-content>
+            <div class="chart-container">
+              <canvas baseChart
+                [data]="revenueChartData"
+                [options]="revenueChartOptions"
+                [type]="revenueChartType">
               </canvas>
             </div>
           </ion-card-content>
@@ -117,6 +138,7 @@ interface ProjectReport {
                   <div class="project-name">{{ report.project.name }}</div>
                   <div class="project-stats">
                     {{ report.hours.toFixed(1) }} horas • {{ report.activities }} actividades
+                    <span *ngIf="report.revenue > 0" class="revenue-badge">\${{ report.revenue.toFixed(2) }}</span>
                   </div>
                 </div>
                 <div class="project-percentage">
@@ -158,6 +180,10 @@ interface ProjectReport {
       font-size: 28px;
       font-weight: bold;
       color: var(--ion-color-primary);
+    }
+
+    .stat-value.stat-revenue {
+      color: #10b981;
     }
 
     .stat-label {
@@ -206,6 +232,19 @@ interface ProjectReport {
     .project-stats {
       font-size: 13px;
       color: var(--ion-color-medium);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .revenue-badge {
+      background: #10b981;
+      color: white;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
     }
 
     .project-percentage {
@@ -257,6 +296,7 @@ export class ReportsPage implements OnInit {
   totalHours = 0;
   totalActivities = 0;
   activeProjects = 0;
+  totalRevenue = 0;
   periodLabel = '';
 
   protected readonly calendarIcon = calendar;
@@ -287,6 +327,37 @@ export class ReportsPage implements OnInit {
         ticks: {
           callback: function(value) {
             return value + 'h';
+          }
+        }
+      }
+    }
+  };
+
+  revenueChartType: ChartType = 'bar';
+  revenueChartData: ChartData<'bar'> = {
+    labels: [],
+    datasets: [{
+      data: [],
+      label: 'Ingresos ($)',
+      backgroundColor: [],
+      borderColor: [],
+      borderWidth: 1
+    }]
+  };
+  revenueChartOptions: ChartConfiguration['options'] = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        display: false
+      }
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        ticks: {
+          callback: function(value) {
+            return '$' + value;
           }
         }
       }
@@ -399,11 +470,12 @@ export class ReportsPage implements OnInit {
       projectMap.set(project.id, {
         project,
         hours: 0,
-        activities: 0
+        activities: 0,
+        revenue: 0
       });
     });
 
-    // Calculate hours and activities per project
+    // Calculate hours, activities and revenue per project
     this.activities.forEach(activity => {
       if (activity.project_id && projectMap.has(activity.project_id)) {
         const report = projectMap.get(activity.project_id)!;
@@ -414,6 +486,10 @@ export class ReportsPage implements OnInit {
           const end = new Date(activity.end_time);
           const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
           report.hours += hours;
+        }
+        
+        if (activity.cost) {
+          report.revenue += activity.cost;
         }
       }
     });
@@ -427,24 +503,39 @@ export class ReportsPage implements OnInit {
     this.totalHours = this.projectReports.reduce((sum, report) => sum + report.hours, 0);
     this.totalActivities = this.activities.length;
     this.activeProjects = this.projectReports.length;
+    this.totalRevenue = this.projectReports.reduce((sum, report) => sum + report.revenue, 0);
   }
 
   updateCharts() {
     const labels = this.projectReports.map(r => r.project.name);
-    const data = this.projectReports.map(r => parseFloat(r.hours.toFixed(2)));
+    const hoursData = this.projectReports.map(r => parseFloat(r.hours.toFixed(2)));
+    const revenueData = this.projectReports.map(r => parseFloat(r.revenue.toFixed(2)));
     const projectColors = this.projectReports.map(r => r.project.color || '#4f46e5');
     
     // Generate varied colors for bar chart
     const barColors = this.generateVariedColors(this.projectReports.length);
 
-    // Update bar chart with varied colors
+    // Update hours bar chart with varied colors
     this.barChartData = {
       labels,
       datasets: [{
-        data,
+        data: hoursData,
         label: 'Horas',
         backgroundColor: barColors,
         borderColor: barColors.map(c => this.darkenColor(c, 20)),
+        borderWidth: 1
+      }]
+    };
+
+    // Update revenue bar chart with project colors
+    const revenueColors = projectColors.map(c => c || '#10b981');
+    this.revenueChartData = {
+      labels,
+      datasets: [{
+        data: revenueData,
+        label: 'Ingresos ($)',
+        backgroundColor: revenueColors,
+        borderColor: revenueColors.map(c => this.darkenColor(c, 20)),
         borderWidth: 1
       }]
     };
@@ -453,7 +544,7 @@ export class ReportsPage implements OnInit {
     this.pieChartData = {
       labels,
       datasets: [{
-        data,
+        data: hoursData,
         backgroundColor: projectColors,
         borderWidth: 2,
         borderColor: '#ffffff'

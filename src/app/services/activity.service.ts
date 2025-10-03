@@ -10,6 +10,7 @@ export interface Activity {
   start_time: string;
   end_time?: string;
   duration?: number; // en minutos
+  cost?: number; // costo de la actividad
   created_at: string;
   projects?: { name: string; color: string };
 }

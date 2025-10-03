@@ -3,3 +3,14 @@
 @tailwind utilities;
 
 /* You can add global styles to this file, and also import other style files */
+
+/* Custom Alert Input Styles */
+.custom-alert-input {
+  .alert-input-group {
+    input[type="text"] {
+      font-size: 18px !important;
+      padding: 12px !important;
+      min-height: 50px !important;
+    }
+  }
+}

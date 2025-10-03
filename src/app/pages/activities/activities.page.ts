@@ -77,16 +77,44 @@ import { AddActivityModalComponent } from './add-activity-modal.component';
                 <span class="slot-time">{{ hour }}:{{ slot.toString().padStart(2, '0') }}</span>
                 
                 <!-- Actividades en este slot -->
-                <div *ngFor="let activity of getActivitiesForSlot(hour, slot)"
+                <div *ngFor="let activity of getActivitiesForSlot(hour, slot); let i = index; let count = count"
                      class="activity-block"
                      [style.background-color]="activity.projects?.color || '#4f46e5'"
                      [style.height.px]="getActivityHeight(activity)"
                      [style.top.px]="getActivityTop(activity, hour, slot)"
+                     [style.left.px]="getActivityLeft(i, count)"
+                     [style.width]="getActivityWidth(count)"
                      (click)="editActivity(activity); $event.stopPropagation()">
                   <div class="activity-content">
                     <strong>{{ activity.description }}</strong>
                     <small>{{ activity.start_time | date:'shortTime' }} - {{ activity.end_time | date:'shortTime' }}</small>
                     <small *ngIf="activity.projects" class="project-name">{{ activity.projects.name }}</small>
+                    <small *ngIf="activity.cost" class="activity-cost">\${{ activity.cost | number:'1.2-2' }}</small>
+                  </div>
+                  
+                  <!-- Tooltip mejorado -->
+                  <div class="activity-tooltip">
+                    <div class="tooltip-header">
+                      <strong>{{ activity.description }}</strong>
+                    </div>
+                    <div class="tooltip-body">
+                      <div class="tooltip-row">
+                        <span class="tooltip-label">Horario:</span>
+                        <span>{{ activity.start_time | date:'shortTime' }} - {{ activity.end_time | date:'shortTime' }}</span>
+                      </div>
+                      <div class="tooltip-row" *ngIf="activity.projects">
+                        <span class="tooltip-label">Proyecto:</span>
+                        <span>{{ activity.projects.name }}</span>
+                      </div>
+                      <div class="tooltip-row" *ngIf="activity.cost">
+                        <span class="tooltip-label">Costo:</span>
+                        <span class="tooltip-cost">\${{ activity.cost | number:'1.2-2' }}</span>
+                      </div>
+                      <div class="tooltip-row">
+                        <span class="tooltip-label">Duración:</span>
+                        <span>{{ getActivityDuration(activity) }}</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -205,8 +233,6 @@ import { AddActivityModalComponent } from './add-activity-modal.component';
 
     .activity-block {
       position: absolute;
-      left: 2px;
-      right: 2px;
       border-radius: 4px;
       padding: 4px 6px;
       color: white;
@@ -215,11 +241,18 @@ import { AddActivityModalComponent } from './add-activity-modal.component';
       box-shadow: 0 1px 3px rgba(0,0,0,0.2);
       cursor: pointer;
       z-index: 10;
+      transition: all 0.2s ease;
     }
 
     .activity-block:hover {
       box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-      transform: scale(1.02);
+      z-index: 100;
+    }
+
+    .activity-block:hover .activity-tooltip {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
     }
 
     .activity-content {
@@ -244,6 +277,100 @@ import { AddActivityModalComponent } from './add-activity-modal.component';
       font-weight: 600;
       opacity: 1;
       margin-top: 1px;
+    }
+
+    .activity-content .activity-cost {
+      background: rgba(16, 185, 129, 0.9);
+      color: white;
+      padding: 2px 6px;
+      border-radius: 10px;
+      font-size: 10px;
+      font-weight: 700;
+      display: inline-block;
+      margin-top: 2px;
+      align-self: flex-start;
+    }
+
+    .activity-tooltip {
+      position: absolute;
+      left: 50%;
+      bottom: calc(100% + 8px);
+      transform: translateX(-50%) translateY(-5px);
+      background: white;
+      color: #333;
+      padding: 16px;
+      border-radius: 10px;
+      box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+      min-width: 300px;
+      max-width: 400px;
+      width: max-content;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.2s ease;
+      z-index: 1000;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+
+    .activity-tooltip::after {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      border: 6px solid transparent;
+      border-top-color: white;
+    }
+
+    .tooltip-header {
+      margin-bottom: 8px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #e0e0e0;
+    }
+
+    .tooltip-header strong {
+      font-size: 15px;
+      color: #333;
+      display: block;
+      white-space: normal;
+      word-wrap: break-word;
+      line-height: 1.3;
+    }
+
+    .tooltip-body {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .tooltip-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      font-size: 13px;
+      line-height: 1.5;
+      white-space: nowrap;
+    }
+
+    .tooltip-label {
+      font-weight: 600;
+      color: #666;
+      white-space: nowrap;
+      min-width: 80px;
+      flex-shrink: 0;
+    }
+
+    .tooltip-row > span:last-child {
+      flex-shrink: 0;
+      text-align: right;
+    }
+
+    .tooltip-cost {
+      color: #10b981;
+      font-weight: 700;
+      font-size: 15px;
+      white-space: nowrap;
     }
 
     ion-segment {
@@ -323,12 +450,23 @@ export class ActivitiesPage implements OnInit {
 
     const basicAlert = await this.alertController.create({
       header: 'Edit Activity',
+      cssClass: 'custom-alert-input',
       inputs: [
         {
           name: 'description',
           type: 'text',
           placeholder: 'Description',
           value: activity.description || ''
+        },
+        {
+          name: 'cost',
+          type: 'number',
+          placeholder: 'Costo (opcional)',
+          value: activity.cost || '',
+          attributes: {
+            min: '0',
+            step: '0.01'
+          }
         },
         {
           name: 'startDateTime',
@@ -416,7 +554,8 @@ export class ActivitiesPage implements OnInit {
               description: activityData.description,
               start_time: startTime,
               end_time: endTime,
-              project_id: selectedProjectId || undefined
+              project_id: selectedProjectId || undefined,
+              cost: activityData.cost ? parseFloat(activityData.cost) : undefined
             };
 
             await this.activityService.updateActivity(activity.id, updates);
@@ -470,11 +609,21 @@ export class ActivitiesPage implements OnInit {
     // First alert for basic activity info
     const basicAlert = await this.alertController.create({
       header: 'Add Manual Activity',
+      cssClass: 'custom-alert-input',
       inputs: [
         {
           name: 'description',
           type: 'text',
           placeholder: 'Description'
+        },
+        {
+          name: 'cost',
+          type: 'number',
+          placeholder: 'Costo (opcional)',
+          attributes: {
+            min: '0',
+            step: '0.01'
+          }
         },
         {
           name: 'startDateTime',
@@ -538,11 +687,40 @@ export class ActivitiesPage implements OnInit {
               description: activityData.description,
               start_time: startTime,
               end_time: endTime,
-              project_id: selectedProjectId || undefined
+              project_id: selectedProjectId || undefined,
+              cost: activityData.cost ? parseFloat(activityData.cost) : undefined
             };
 
-            await this.activityService.createActivity(activity);
-            this.loadActivities(); // Refresh list
+            const result = await this.activityService.createActivity(activity);
+            if (result.data) {
+              await this.loadActivities(); // Refresh list
+            }
+          }
+        },
+        {
+          text: 'Agregar y Crear Otra',
+          handler: async (selectedProjectId) => {
+            const startTime = new Date(activityData.startDateTime).toISOString();
+            const endTime = activityData.endDateTime ? new Date(activityData.endDateTime).toISOString() : undefined;
+
+            const activity = {
+              description: activityData.description,
+              start_time: startTime,
+              end_time: endTime,
+              project_id: selectedProjectId || undefined,
+              cost: activityData.cost ? parseFloat(activityData.cost) : undefined
+            };
+
+            const result = await this.activityService.createActivity(activity);
+            if (result.data) {
+              await this.loadActivities();
+            }
+            
+            // Reabrir el diálogo para crear otra actividad con el mismo horario
+            await this.alertController.dismiss();
+            setTimeout(() => {
+              this.addManualActivityWithTime(activityData.startDateTime, activityData.endDateTime);
+            }, 300);
           }
         }
       ]
@@ -551,6 +729,56 @@ export class ActivitiesPage implements OnInit {
     // Dismiss the first alert
     await this.alertController.dismiss();
     await projectAlert.present();
+  }
+
+  async addManualActivityWithTime(startDateTime?: string, endDateTime?: string) {
+    const basicAlert = await this.alertController.create({
+      header: 'Add Manual Activity',
+      cssClass: 'custom-alert-input',
+      inputs: [
+        {
+          name: 'description',
+          type: 'text',
+          placeholder: 'Description'
+        },
+        {
+          name: 'cost',
+          type: 'number',
+          placeholder: 'Costo (opcional)',
+          attributes: {
+            min: '0',
+            step: '0.01'
+          }
+        },
+        {
+          name: 'startDateTime',
+          type: 'datetime-local',
+          value: startDateTime || new Date().toISOString().slice(0, 16)
+        },
+        {
+          name: 'endDateTime',
+          type: 'datetime-local',
+          value: endDateTime || ''
+        }
+      ],
+      buttons: [
+        {
+          text: 'Cancel',
+          role: 'cancel'
+        },
+        {
+          text: 'Next',
+          handler: async (data) => {
+            if (data.description && data.startDateTime) {
+              await this.showProjectSelection(data);
+            }
+            return false;
+          }
+        }
+      ]
+    });
+
+    await basicAlert.present();
   }
 
   trackByFn(index: number, item: Activity) {
@@ -674,25 +902,106 @@ export class ActivitiesPage implements OnInit {
     }
   }
 
-  handleSlotClick(hour: number, slot: number) {
-    // Single click creates a 1-hour activity
+  async handleSlotClick(hour: number, slot: number) {
     const startDate = new Date(this.selectedDate);
     startDate.setHours(hour, slot, 0, 0);
     
     const endDate = new Date(startDate);
     endDate.setHours(hour + 1, slot, 0, 0);
     
-    this.createActivityFromSelection(startDate, endDate);
+    // Verificar si ya hay actividades en este slot
+    const existingActivities = this.getActivitiesForSlot(hour, slot);
+    
+    if (existingActivities.length > 0) {
+      // Si hay actividades, mostrar opciones
+      await this.showSlotOptions(startDate, endDate, existingActivities);
+    } else {
+      // Si no hay actividades, crear una nueva directamente
+      this.createActivityFromSelection(startDate, endDate);
+    }
+  }
+
+  async showSlotOptions(startDate: Date, endDate: Date, existingActivities: Activity[]) {
+    const alert = await this.alertController.create({
+      header: 'Opciones',
+      message: `Ya hay ${existingActivities.length} actividad(es) en este horario.`,
+      buttons: [
+        {
+          text: 'Agregar Nueva Actividad',
+          handler: () => {
+            this.createActivityFromSelection(startDate, endDate);
+          }
+        },
+        {
+          text: 'Ver/Editar Actividades',
+          handler: () => {
+            // Si solo hay una actividad, editarla directamente
+            if (existingActivities.length === 1) {
+              this.editActivity(existingActivities[0]);
+            } else {
+              // Si hay múltiples, mostrar lista para seleccionar
+              this.showActivityList(existingActivities);
+            }
+          }
+        },
+        {
+          text: 'Cancelar',
+          role: 'cancel'
+        }
+      ]
+    });
+
+    await alert.present();
+  }
+
+  async showActivityList(activities: Activity[]) {
+    const inputs = activities.map((activity, index) => ({
+      type: 'radio' as const,
+      label: `${activity.description} - ${activity.projects?.name || 'Sin proyecto'}`,
+      value: index,
+      checked: index === 0
+    }));
+
+    const alert = await this.alertController.create({
+      header: 'Seleccionar Actividad',
+      inputs: inputs,
+      buttons: [
+        {
+          text: 'Cancelar',
+          role: 'cancel'
+        },
+        {
+          text: 'Editar',
+          handler: (selectedIndex) => {
+            if (selectedIndex !== undefined) {
+              this.editActivity(activities[selectedIndex]);
+            }
+          }
+        }
+      ]
+    });
+
+    await alert.present();
   }
 
   async createActivityFromSelection(startDate: Date, endDate: Date) {
     const basicAlert = await this.alertController.create({
       header: 'Nueva Actividad',
+      cssClass: 'custom-alert-input',
       inputs: [
         {
           name: 'description',
           type: 'text',
           placeholder: 'Descripción'
+        },
+        {
+          name: 'cost',
+          type: 'number',
+          placeholder: 'Costo $ (opcional)',
+          attributes: {
+            min: '0',
+            step: '0.01'
+          }
         }
       ],
       buttons: [
@@ -710,6 +1019,7 @@ export class ActivitiesPage implements OnInit {
               
               await this.showProjectSelectionForNewActivity({
                 description: data.description,
+                cost: data.cost,
                 startDateTime: startISO,
                 endDateTime: endISO
               });
@@ -762,11 +1072,41 @@ export class ActivitiesPage implements OnInit {
               description: activityData.description,
               start_time: activityData.startDateTime,
               end_time: activityData.endDateTime,
-              project_id: selectedProjectId || undefined
+              project_id: selectedProjectId || undefined,
+              cost: activityData.cost ? parseFloat(activityData.cost) : undefined
             };
 
-            await this.activityService.createActivity(activity);
-            this.loadActivitiesForDate();
+            const result = await this.activityService.createActivity(activity);
+            if (result.data) {
+              // Recargar actividades para obtener los datos completos con el proyecto
+              await this.loadActivitiesForDate();
+            }
+          }
+        },
+        {
+          text: 'Crear y Agregar Otra',
+          handler: async (selectedProjectId) => {
+            const activity = {
+              description: activityData.description,
+              start_time: activityData.startDateTime,
+              end_time: activityData.endDateTime,
+              project_id: selectedProjectId || undefined,
+              cost: activityData.cost ? parseFloat(activityData.cost) : undefined
+            };
+
+            const result = await this.activityService.createActivity(activity);
+            if (result.data) {
+              // Recargar actividades para obtener los datos completos con el proyecto
+              await this.loadActivitiesForDate();
+            }
+            
+            // Reabrir el diálogo para crear otra actividad con el mismo horario
+            await this.alertController.dismiss();
+            setTimeout(() => {
+              const startDate = new Date(activityData.startDateTime);
+              const endDate = new Date(activityData.endDateTime);
+              this.createActivityFromSelection(startDate, endDate);
+            }, 300);
           }
         }
       ]
@@ -839,5 +1179,44 @@ export class ActivitiesPage implements OnInit {
     }
     
     return 0;
+  }
+
+  getActivityLeft(index: number, totalCount: number): number {
+    if (totalCount === 1) return 2;
+    
+    // Calcular el ancho de cada actividad
+    const availableWidth = 100; // Ancho disponible en porcentaje
+    const gap = 2; // Espacio entre actividades
+    const widthPerActivity = (availableWidth - (gap * (totalCount - 1))) / totalCount;
+    
+    // Calcular la posición left en píxeles (aproximado)
+    return 2 + (index * (widthPerActivity + gap));
+  }
+
+  getActivityWidth(totalCount: number): string {
+    if (totalCount === 1) return 'calc(100% - 4px)';
+    
+    // Calcular el ancho en porcentaje
+    const gap = 2; // Espacio entre actividades en px
+    const totalGap = gap * (totalCount - 1);
+    const widthPercent = (100 - totalGap) / totalCount;
+    
+    return `calc(${widthPercent}% - ${gap}px)`;
+  }
+
+  getActivityDuration(activity: Activity): string {
+    if (!activity.start_time || !activity.end_time) return 'N/A';
+    
+    const start = new Date(activity.start_time);
+    const end = new Date(activity.end_time);
+    const durationMinutes = (end.getTime() - start.getTime()) / (1000 * 60);
+    
+    const hours = Math.floor(durationMinutes / 60);
+    const minutes = Math.round(durationMinutes % 60);
+    
+    if (hours > 0) {
+      return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
+    }
+    return `${minutes}m`;
   }
 }
